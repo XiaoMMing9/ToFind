@@ -32,7 +32,7 @@ pip install -r requests.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 
 ```bash
 python ToFind.py -u http://localhost:4000/                       (提取本地4000端口web服务的网站指纹)        
-python ToFind.py -u http://localhost:4000/ -p hexo               (提取web网站指纹并且附加参数“hexo”，如果提取的指纹为“/login”，最后的指纹为                                                                        "/login" && "hexo")
+python ToFind.py -u http://localhost:4000/ -p hexo               (提取web网站指纹并且附加参数“hexo”，如果提取的指纹为“/login”，最后的指纹为 "/login" && "hexo")
 python ToFind.py -u http://localhost:4000/ -f                    (输出网站指纹，并且使用Fofa查询同源的网站并显示在命令行中)
 python ToFind.py -u http://localhost:4000/ -f -o 1.txt           (输出网站指纹，使用Fofa查询同源的网站将其保存在1.txt文件中)
 python ToFind.py -u http://localhost:4000/ -f -o 1.xlsx          (输出网站指纹，使用Fofa查询同源的网站将其保存在1.xlsx文件中)
