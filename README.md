@@ -54,10 +54,9 @@ python3 ToFind.py -u https://jwxt.lcu.edu.cn/jwglxt/xtgl/login_slogin.html -f | 
 
 ![image-20240713111154485](images/同源码网站收集工具/image-20240713111154485.png)
 
-![image-20240713111334466](images/同源码网站收集工具/image-20240713111334466.png)
+![image-20240713111301822](images/同源码网站收集工具/image-20240713111301822.png)
 
-![image-20240713111347456](images/同源码网站收集工具/image-20240713111347456.png)
-
+![image-20240713111308158](images/同源码网站收集工具/image-20240713111308158.png)
 ### 0x02
 
 ```bash
