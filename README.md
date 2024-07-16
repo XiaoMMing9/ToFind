@@ -1,10 +1,45 @@
 # ToFind
+
 同源码网站收集工具
 发现网站特征指纹，通过Fofa搜寻同源网站
 
 ## 摘要
 
 这是一个发现网站指纹的工具，依据css、Api等来发现网站指纹，调用Fofa Api搜索同源网站
+
+## 版本更新(2024/7/16)
+
+支持任意`url`，附加`http`、`https`协议
+
+![image-20240716101526879](images/同源码网站收集工具/image-20240716101526879.png)
+
+支持批量读取url
+
+![image-20240716094857496](images/同源码网站收集工具/image-20240716094857496.png)
+
+![image-20240716094836300](images/同源码网站收集工具/image-20240716094836300.png)
+
+修复xlsx导出功能
+
+更新测试：
+
+url文档
+
+![image-20240716095456086](images/同源码网站收集工具/image-20240716095456086.png)
+
+```bash
+python ToFind.py -r 1.txt -f -o out.xlsx           #批量读取1.txt中的url通过Fofa搜索数据导出至out.xlsx
+```
+
+![image-20240716102017407](images/同源码网站收集工具/image-20240716102017407.png)
+
+结果图
+
+![image-20240716102159147](images/同源码网站收集工具/image-20240716102159147.png)
+
+![image-20240716102346780](images/同源码网站收集工具/image-20240716102346780.png)
+
+![image-20240716102303040](images/同源码网站收集工具/image-20240716102303040.png)
 
 ## 使用方式
 
@@ -57,6 +92,7 @@ python3 ToFind.py -u https://jwxt.lcu.edu.cn/jwglxt/xtgl/login_slogin.html -f | 
 ![image-20240713111301822](images/同源码网站收集工具/image-20240713111301822.png)
 
 ![image-20240713111308158](images/同源码网站收集工具/image-20240713111308158.png)
+
 ### 0x02
 
 ```bash
