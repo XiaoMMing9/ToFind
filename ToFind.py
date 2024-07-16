@@ -7,14 +7,38 @@ import math
 import argparse
 import json
 import pandas as pd
+import os
+from openpyxl import Workbook
+from openpyxl.utils.dataframe import dataframe_to_rows
 
 def get_text(url):
-    #获取源代码
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
     }
-    s = requests.get(url, headers=headers,verify=False)
-    return s.text
+    if not url.startswith('http://') and not url.startswith('https://'):
+        url = 'http://' + url
+    #获取源代码
+    try:
+        s = requests.get(url, headers=headers, verify=False)
+        if str(s.status_code)[0] == '2':
+            return s.text,url
+        else:
+            if url.startswith('http://'):
+                url = 'https://' + url[len('http://'):]
+            elif url.startswith('https://'):
+                url = 'http://' + url[len('https://'):]
+            s = requests.get(url, headers=headers, verify=False)
+            return s.text, url
+    except:
+        if url.startswith('http://'):
+            url = 'https://' + url[len('http://'):]
+        elif url.startswith('https://'):
+            url = 'http://' + url[len('https://'):]
+        try:
+            s = requests.get(url, headers=headers, verify=False)
+            return s.text,url
+        except:
+            return '',url
 def get_all_css_classes(url,text):
     #获取全部<link rel="stylesheet" type="text/css" href="" />加载的css中所有的类名
     headers = {
@@ -29,10 +53,10 @@ def get_all_css_classes(url,text):
             if not any(exclude in href for exclude in exclude_list):
                 if href.startswith('http'):
                     css_links.append(href)
-                    print(href)
+                    # print(href)
                 else:
                     css_links.append(requests.compat.urljoin(url, href))
-                    print(requests.compat.urljoin(url, href))
+                    # print(requests.compat.urljoin(url, href))
     all_classes = set()
     for css_link in css_links:
         css_content = requests.get(url=css_link,headers=headers,verify=False).text # 下载css
@@ -89,22 +113,65 @@ def fofa(base):
     }
     s = requests.get(url, headers=headers)
     return s.json()
-def save_to_file(data, filename, filetype, size_value):
+def save_to_file(data, filename, filetype, size_value, url,fingerprint):
     #数据保存到文件
     if filetype == 'txt':
-        with open(filename, 'w', encoding='utf-8') as f:
+        with open(filename, 'a+', encoding='utf-8') as f:
+            f.write(f"提取Url: {url}\n")
             f.write(f"Size: {size_value}\n")
+            f.write(f"指纹：{fingerprint}\n")
             for item in data:
                 f.write("%s\n" % item)
     elif filetype == 'xlsx':
-        df = pd.DataFrame(data, columns=["URL", "IP", "Port"])
-        df.loc[0, 'URL'] = f"Size: {size_value}"
-        df.to_excel(filename, index=False)
-def main(url, param=None, output_file=None, execute_fofa=False):
-    s = get_text(url)
+        df_data = pd.DataFrame(data, columns=["URL", "IP", "Port"])
+        metadata = {"URL": f"{url}", "Size": size_value ,"fingerprint" : fingerprint}
+        file_exists = os.path.exists(filename)
+        if not file_exists:
+            with pd.ExcelWriter(filename, engine='openpyxl', mode='w') as writer:
+                df_metadata_header = pd.DataFrame(columns=["URL", "Size" ,"fingerprint"])
+                df_metadata_header.to_excel(writer, index=False, startrow=0, header=True)
+                df_metadata = pd.DataFrame([metadata])
+                df_metadata.to_excel(writer, index=False, header=False, startrow=1)
+                header_df = pd.DataFrame(columns=["URL", "IP", "Port"])
+                header_df.to_excel(writer, index=False, startrow=2, header=True)
+                df_data.to_excel(writer, index=False, header=False, startrow=3)
+        else:
+            with pd.ExcelWriter(filename, engine='openpyxl', mode='a', if_sheet_exists='overlay') as writer:
+                workbook = writer.book
+                sheet = workbook.active
+                start_row = sheet.max_row + 2
+                df_metadata_header = pd.DataFrame(columns=["URL", "Size", "fingerprint"])
+                for r in dataframe_to_rows(df_metadata_header, index=False, header=True):
+                    sheet.append(r)
+                df_metadata = pd.DataFrame([metadata])
+                for r in dataframe_to_rows(df_metadata, index=False, header=False):
+                    sheet.append(r)
+                header_df = pd.DataFrame(columns=["URL", "IP", "Port"])
+                for r in dataframe_to_rows(header_df, index=False, header=True):
+                    sheet.append(r)
+                for r in dataframe_to_rows(df_data, index=False, header=False):
+                    sheet.append(r)
+                workbook.save(filename)
+
+def main(url, param=None, output_file=None, execute_fofa=False, readfile=None):
+    if readfile:
+        with open(readfile, 'r') as f:
+            urls = f.readlines()
+        for url in urls:
+            url = url.strip()
+            process_url(url, param, output_file, execute_fofa)
+    else:
+        process_url(url, param, output_file, execute_fofa)
+
+def process_url(url, param=None, output_file=None, execute_fofa=False):
+    start_url = url
+    s,url = get_text(url)
+    if s == '':
+        print(f"{start_url}访问不可达")
+        return ''
     apis = get_text_api(s)
     if len(apis) > 0:
-        sqrt_number_api = math.floor(math.sqrt(len(apis)))
+        sqrt_number_api = math.ceil(math.sqrt(len(apis)))
         random_apis = random.sample(apis, sqrt_number_api)
         joined_apis = '" && "'.join(random_apis)
     else:
@@ -113,7 +180,7 @@ def main(url, param=None, output_file=None, execute_fofa=False):
     classes = set(get_text_css_class(s)).intersection(get_all_css_classes(url, s))
     if len(classes) > 0:
         classes = sorted(classes)
-        sqrt_number_classes = math.ceil(math.sqrt(len(classes)))
+        sqrt_number_classes = math.floor(math.sqrt(len(classes)))
         random_classes = random.sample(classes, sqrt_number_classes)
         joined_classes = '" && "'.join(random_classes)
     else:
@@ -130,6 +197,7 @@ def main(url, param=None, output_file=None, execute_fofa=False):
         fingerprint = '( ' + fingerprint + ' )' + ' && "' + powerby_str + '"'
     if param:
         fingerprint = '( ' + fingerprint + ' )' + ' && "' + param + '"'
+    print('Url\n' + url)
     print('构造的指纹如下\n' + fingerprint)
     if execute_fofa:
         results = fofa(base64.b64encode(fingerprint.encode()).decode())
@@ -137,24 +205,35 @@ def main(url, param=None, output_file=None, execute_fofa=False):
         size_value = results.get('size', 0)  # 获取size值
         if output_file:
             filetype = output_file.split('.')[-1]
-            save_to_file(result_data, output_file, filetype, size_value)
+            save_to_file(result_data, output_file, filetype, size_value,url,fingerprint)
         else:
             print(f"通过Fofa共搜索出{size_value}条数据")
             for item in result_data:
                 print(item)
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="依据css类 Api等来发现网站指纹,通过Fofa寻找同源码网站,使用Fofa查询之前要在json文件中添加Fofa key")
-    parser.add_argument('-u', '--url', type=str, required=True, metavar='', help='网站Url')
+    parser.add_argument('-u', '--url', type=str, required=False, metavar='', help='网站Url')
     parser.add_argument('-p', '--param', type=str, required=False, metavar='',
                         help='输入要添加的参数,不要带问号、双引号这些特殊字符,要不然Fofa搜索时会报错的')
     parser.add_argument('-f', '--fofa', action='store_true', help='是否执行Fofa搜索,不带-f选项只会输出框架指纹')
     parser.add_argument('-o', '--output', type=str, required=False, metavar='', help='输出文件名,可以是txt或xlsx格式')
+    parser.add_argument('-r', '--readfile', type=str, required=False, metavar='', help='从txt文件中读取URL')
 
     args = parser.parse_args()
     if args.output:
         valid_formats = ['.txt', '.xlsx']
-        file_format = args.output[-4:].lower()  # 获取文件名后缀并转为小写
+        file_format = '.' + args.output.split('.')[-1].lower()
         if file_format not in valid_formats:
             print("输出文件格式必须是txt或xlsx")
             exit()
-    main(args.url, args.param, args.output, args.fofa)
+    if args.output:
+        if os.path.exists(args.output):
+            if args.output.endswith('.xlsx'):
+                wb = Workbook()
+                wb.save(args.output)
+            else:
+                with open(args.output, 'w') as file:
+                    pass  # 创建空文件
+    main(args.url, args.param, args.output, args.fofa, args.readfile)
+
