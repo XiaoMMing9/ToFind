@@ -53,19 +53,18 @@ def get_all_css_classes(url,text):
             if not any(exclude in href for exclude in exclude_list):
                 if href.startswith('http'):
                     css_links.append(href)
-                    # print(href)
                 else:
                     css_links.append(requests.compat.urljoin(url, href))
-                    # print(requests.compat.urljoin(url, href))
     all_classes = set()
     for css_link in css_links:
-        css_content = requests.get(url=css_link,headers=headers,verify=False).text # 下载css
-        if css_content:
-            classes = set()
-            class_pattern = r'\.([\w\-]+)'
-            matches = re.findall(class_pattern, css_content)
-            classes.update(matches)
-            all_classes.update(classes)
+        try:
+            css_content = requests.get(css_link, headers=headers, verify=False, timeout=10).text  # 下载CSS
+            if css_content:
+                class_pattern = r'\.([\w\-]+)'
+                matches = re.findall(class_pattern, css_content)
+                all_classes.update(matches)
+        except :
+            return []
     return sorted(all_classes)    #返回css类名
 def get_text_css_class(text):
     #获取源码中的类名
@@ -80,16 +79,24 @@ def get_text_css_class(text):
 def get_text_api(source_code):
     #获取源码中的api接口
     # 使用正则表达式查找以"/"或'/'开头，并以".css"或".js"结尾的字符串
-    pattern = r"['\"](\/[^\n\r'\"]*?)?['\"]"
+    pattern = r"['\"]((\/|\.\/)[^\n\r'\"?]+)(\?[^\n\r'\" ]*)?['\"]"
     matches = re.findall(pattern, source_code)
     # 将匹配的路径添加到列表中，去掉.css和.js后缀
     apis = []
-    exclude_list = ['/', '/favicon.ico', '/login', '/register', '/login.html', '/register.html']  # 排除的插件库
+    exclude_api = ['/', '//', '/favicon.ico', '/login', '/register', '/login.html', '/register.html']  # 排除的滥用接口
+    exclude_list = ['bootstrap', 'chosen', 'bootbox', 'awesome', 'animate', 'picnic', 'cirrus', 'iconfont', 'jquery','layui', 'swiper']  # 排除的插件库
     for match in matches:
-        match = re.sub(r'\?.*$', '', match)
-        # 如果路径不包含 .css 或 .js 后缀，则添加到 cleaned_paths
-        if not re.search(r'\.(css|js)([^\w.]|$)', match):
-            if match != '' and match not in exclude_list:
+        match = match[0]  # 由于 findall 返回的是元组，需要取第一个元素
+        match = re.sub(r'\?.*$', '', match)  # 去除查询参数
+        # 仅当路径与 exclude_api 列表中的任意一个完全匹配时，才会被排除
+        if match and match not in exclude_api:
+            contains_excluded_str = False
+            for ex_str in exclude_list:
+                if ex_str in match:
+                    contains_excluded_str = True
+                    break
+            # 如果路径不包含任意一个 exclude_list 中的字符，则添加到 apis 列表中
+            if not contains_excluded_str:
                 apis.append(match)
     return apis
 def get_power(text):
@@ -139,7 +146,6 @@ def save_to_file(data, filename, filetype, size_value, url,fingerprint):
             with pd.ExcelWriter(filename, engine='openpyxl', mode='a', if_sheet_exists='overlay') as writer:
                 workbook = writer.book
                 sheet = workbook.active
-                start_row = sheet.max_row + 2
                 df_metadata_header = pd.DataFrame(columns=["URL", "Size", "fingerprint"])
                 for r in dataframe_to_rows(df_metadata_header, index=False, header=True):
                     sheet.append(r)
@@ -154,6 +160,7 @@ def save_to_file(data, filename, filetype, size_value, url,fingerprint):
                 workbook.save(filename)
 
 def main(url, param=None, output_file=None, execute_fofa=False, readfile=None):
+    #批量读取Url
     if readfile:
         with open(readfile, 'r') as f:
             urls = f.readlines()
@@ -171,18 +178,37 @@ def process_url(url, param=None, output_file=None, execute_fofa=False):
         return ''
     apis = get_text_api(s)
     if len(apis) > 0:
-        sqrt_number_api = math.ceil(math.sqrt(len(apis)))
-        random_apis = random.sample(apis, sqrt_number_api)
-        joined_apis = '" && "'.join(random_apis)
-    else:
-        print("没有找到接口")
-        joined_apis = ''
+        filtered_apis = [api for api in apis if api.endswith(('.css', '.js', '.ico', '.png', '.jpg'))]
+        other_apis = [api for api in apis if not api.endswith(('.css', '.js', '.ico', '.png', '.jpg'))]
+        if len(other_apis) > 6:
+            sqrt_number_other = math.ceil(math.sqrt(len(other_apis)))
+            random_other_apis = random.sample(other_apis, min(sqrt_number_other, len(other_apis) ))
+            joined_apis = random_other_apis
+        else:
+            if len(filtered_apis) > 3:
+                sqrt_number_api = math.floor(math.sqrt(len(filtered_apis)))
+                random_filtered_apis = random.sample(filtered_apis, min(sqrt_number_api, len(filtered_apis)))
+            elif filtered_apis:
+                random_filtered_apis = filtered_apis
+            else:
+                random_filtered_apis = []
+            joined_apis = other_apis + random_filtered_apis
+
+        if len(joined_apis) > 7 :
+            sqrt_number = math.ceil(math.sqrt(len(joined_apis)))
+            random_apis = random.sample(joined_apis, min(sqrt_number,len(joined_apis)))
+            joined_apis = '" && "'.join(random_apis)
+        else:
+            joined_apis = '" && "'.join(joined_apis)
     classes = set(get_text_css_class(s)).intersection(get_all_css_classes(url, s))
     if len(classes) > 0:
         classes = sorted(classes)
-        sqrt_number_classes = math.floor(math.sqrt(len(classes)))
-        random_classes = random.sample(classes, sqrt_number_classes)
-        joined_classes = '" && "'.join(random_classes)
+        if len(classes) > 9:
+            sqrt_number_classes = math.ceil(math.sqrt(len(classes)))
+            random_classes = random.sample(classes, min(sqrt_number_classes, len(classes)))
+            joined_classes = '" && "'.join(random_classes)
+        else:
+            joined_classes = '" && "'.join(classes)
     else:
         print("没有找到共同的类名。")
         joined_classes = ''
