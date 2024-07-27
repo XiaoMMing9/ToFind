@@ -10,7 +10,8 @@
 
 v2.0.1
 
-更新获取`api`逻辑，排除`jquery.js`、`bootstrap.css`等引用的`api`接口，降低指纹中`.css`、`.js`、`.png`、`.jpg`、`.ico`的`api`占比，放大`.html`、`.php`接口的比例
+更新获取`api`逻辑，排除`jquery.js`、`bootstrap.css`等引用的`api`接口
+降低指纹中`.css`、`.js`、`.png`、`.jpg`、`.ico`的`api`占比，放大`.html`、`.php`接口的比例
 
 ## 版本更新(2024/7/16)
 
