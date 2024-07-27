@@ -1,11 +1,14 @@
 # ToFind
-
 同源码网站收集工具
 发现网站特征指纹，通过Fofa搜寻同源网站
 
 ## 摘要
 
 这是一个发现网站指纹的工具，依据css、Api等来发现网站指纹，调用Fofa Api搜索同源网站
+
+## 版本更新(2024/7/27)
+
+更新获取`api`逻辑，排除`jquery.js`、`bootstrap.css`等引用的`api`接口，降低指纹中`.css`、`.js`、`.png`、`.jpg`、`.ico`的`api`占比，放大`.html`、`.php`接口的比例
 
 ## 版本更新(2024/7/16)
 
@@ -92,7 +95,6 @@ python3 ToFind.py -u https://jwxt.lcu.edu.cn/jwglxt/xtgl/login_slogin.html -f | 
 ![image-20240713111301822](images/同源码网站收集工具/image-20240713111301822.png)
 
 ![image-20240713111308158](images/同源码网站收集工具/image-20240713111308158.png)
-
 ### 0x02
 
 ```bash
