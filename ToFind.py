@@ -10,6 +10,9 @@ import pandas as pd
 import os
 from openpyxl import Workbook
 from openpyxl.utils.dataframe import dataframe_to_rows
+import mmh3
+import codecs
+
 
 def get_text(url):
     headers = {
@@ -99,6 +102,57 @@ def get_text_api(source_code):
             if not contains_excluded_str:
                 apis.append(match)
     return apis
+
+def extract_base_url(url):
+    if url.startswith('https://'):
+        pattern = r'https://([a-zA-Z0-9.-]+)\.(cn|com)'
+        match = re.match(pattern, url)
+        if match:
+            base_url = f"https://{match.group(1)}.{match.group(2)}"
+            return base_url
+        else:
+            return None
+    elif url.startswith('http://'):
+        pattern = r'http://([a-zA-Z0-9.-]+)\.(cn|com)'
+        match = re.match(pattern, url)
+        if match:
+            base_url = f"http://{match.group(1)}.{match.group(2)}"
+            return base_url
+        else:
+            return None
+
+
+    pattern = r'https://([a-zA-Z0-9.-]+)\.(cn|com)'
+    match = re.match(pattern, url)
+    if match:
+        base_url = f"https://{match.group(1)}.{match.group(2)}"
+        return base_url
+    else:
+        return None
+
+
+def icon_hashs(url):
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
+    }
+    s, url = get_text(url)
+    base_url = extract_base_url(url)
+    #print(base_url)
+    apis=get_text_api(s)
+    if len(apis) > 0:
+        filtered_apis = [api for api in apis if api.endswith(('.ico'))]
+    icons = filtered_apis
+    for api in icons:
+        api = base_url + api
+        #print(api)
+        favicon_response = requests.get(api, headers=headers, verify=False)
+        if favicon_response.status_code == 200:
+            favicon_hashs = mmh3.hash(codecs.lookup('base64').encode(favicon_response.content)[0])
+            #print('icon_hash="{}"'.format(favicon_hash))
+        return 'icon_hash="{}"'.format(favicon_hashs)
+
+
+
 def get_power(text):
     #获取power by/powered by后的内容
     pattern = r'(?:powered by|power by)\s+(<a\s+[^>]*href="([^"]+)"[^>]*>|[^<>\s]+)'
@@ -173,6 +227,7 @@ def main(url, param=None, output_file=None, execute_fofa=False, readfile=None):
 def process_url(url, param=None, output_file=None, execute_fofa=False):
     start_url = url
     s,url = get_text(url)
+    icon_hash = icon_hashs(url)
     if s == '':
         print(f"{start_url}访问不可达")
         return ''
@@ -182,7 +237,7 @@ def process_url(url, param=None, output_file=None, execute_fofa=False):
         other_apis = [api for api in apis if not api.endswith(('.css', '.js', '.ico', '.png', '.jpg'))]
         if len(other_apis) > 6:
             sqrt_number_other = math.ceil(math.sqrt(len(other_apis)))
-            random_other_apis = random.sample(other_apis, min(sqrt_number_other, len(other_apis) ))
+            random_other_apis = random.sample(other_apis, min(sqrt_number_other, len(other_apis) ))#为了提高平衡性
             joined_apis = random_other_apis
         else:
             if len(filtered_apis) > 3:
@@ -212,12 +267,14 @@ def process_url(url, param=None, output_file=None, execute_fofa=False):
     else:
         print("没有找到共同的类名。")
         joined_classes = ''
-    if joined_classes and joined_apis:
-        fingerprint = '("' + joined_apis + '") || ("' + joined_classes + '")'
+    if joined_classes and joined_apis and icon_hash:
+        fingerprint = '("' + joined_apis + '") || ("' + joined_classes + '") || (' + icon_hash + ')'
     elif joined_classes:
         fingerprint = '"' + joined_classes + '"'
-    else:
+    elif joined_apis:
         fingerprint = '"' + joined_apis + '"'
+    else:
+        fingerprint =  + icon_hash
     powerby_str = get_power(s)
     if powerby_str:
         fingerprint = '( ' + fingerprint + ' )' + ' && "' + powerby_str + '"'

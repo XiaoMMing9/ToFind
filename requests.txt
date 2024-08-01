@@ -2,4 +2,6 @@ argparse
 beautifulsoup4
 lxml
 pandas
-requests
+request
+mmh3
+codecs
