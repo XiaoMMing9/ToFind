@@ -98,14 +98,14 @@ python3 ToFind.py -u http://speak13.com:81/ -f | more
 ![image-20240713114435230](images/同源码网站收集工具/image-20240713114435230.png)
 
 ```bash
-python3 ToFind.py -u http://192.168.1.3/ -f | more
+python ToFind.py -u http://localhost:4000/ -f -b | more
 ```
 
-![image-20240713114638317](images/同源码网站收集工具/image-20240713114638317.png)
+![image-20241008154805493](images/同源码网站收集工具/image-20241008154805493.png)
 
-![image-20240713114603431](images/同源码网站收集工具/image-20240713114603431.png)
+![image-20241008154902474](images/同源码网站收集工具/image-20241008154902474.png)
 
-![image-20240713114700558](images/同源码网站收集工具/image-20240713114700558.png)
+![image-20241008154910724](images/同源码网站收集工具/image-20241008154910724.png)
 
 ## 更新日志
 
