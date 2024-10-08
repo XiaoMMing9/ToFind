@@ -12,33 +12,51 @@ from openpyxl import Workbook
 from openpyxl.utils.dataframe import dataframe_to_rows
 
 def get_text(url):
+    #获取源代码
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
     }
     if not url.startswith('http://') and not url.startswith('https://'):
         url = 'http://' + url
-    #获取源代码
-    try:
-        s = requests.get(url, headers=headers, verify=False)
-        if str(s.status_code)[0] == '2':
-            return s.text,url
-        else:
-            if url.startswith('http://'):
-                url = 'https://' + url[len('http://'):]
-            elif url.startswith('https://'):
-                url = 'http://' + url[len('https://'):]
-            s = requests.get(url, headers=headers, verify=False)
-            return s.text, url
-    except:
-        if url.startswith('http://'):
-            url = 'https://' + url[len('http://'):]
-        elif url.startswith('https://'):
-            url = 'http://' + url[len('https://'):]
         try:
             s = requests.get(url, headers=headers, verify=False)
-            return s.text,url
-        except:
-            return '',url
+            if str(s.status_code)[0] == '2':    return s.text, url
+            else:
+                url = 'https://' + url[len('http://'):]
+                s = requests.get(url, headers=headers, verify=False)
+                if str(s.status_code)[0] == '2':    return s.text, url
+                else:    return '', url
+        except:    return '', url
+    else:
+        s = requests.get(url, headers=headers, verify=False)
+        try:
+            if str(s.status_code)[0] == '2':    return s.text, url
+            else:   return '', url
+        except:   return '', url
+
+def get_text_api(source_code):
+    #获取源码中的api接口
+    # 使用正则表达式查找以"/"或'/'开头，并以".css"或".js"结尾的字符串
+    pattern = r"['\"]((\/|\.\/)[^\n\r'\"?]+)(\?[^\n\r'\" ]*)?['\"]"
+    matches = re.findall(pattern, source_code)
+    apis = []
+    exclude_api = ['/', '//', '/favicon.ico', '/login', '/register', '/login.html', '/register.html']  # 排除的滥用接口
+    exclude_list = ['bootstrap', 'chosen', 'bootbox', 'awesome', 'animate', 'picnic', 'cirrus', 'iconfont', 'jquery', 'layui', 'swiper']  # 排除的插件库
+    for match in matches:
+        match = match[0]  # 由于 findall 返回的是元组，需要取第一个元素
+        match = re.sub(r'\?.*$', '', match)  # 去除查询参数
+        # 仅当路径与 exclude_api 列表中的任意一个完全匹配时，才会被排除
+        if match and match not in exclude_api:
+            contains_excluded_str = False
+            for ex_str in exclude_list:
+                if ex_str in match:
+                    contains_excluded_str = True
+                    break
+            # 如果路径不包含任意一个 exclude_list 中的字符，则添加到 apis 列表中
+            if not contains_excluded_str:
+                apis.append(match)
+    return apis
+
 def get_all_css_classes(url,text):
     #获取全部<link rel="stylesheet" type="text/css" href="" />加载的css中所有的类名
     headers = {
@@ -66,6 +84,7 @@ def get_all_css_classes(url,text):
         except :
             return []
     return sorted(all_classes)    #返回css类名
+
 def get_text_css_class(text):
     #获取源码中的类名
     soup = BeautifulSoup(text, 'html.parser')
@@ -76,29 +95,7 @@ def get_text_css_class(text):
         if classes:  # 如果存在 class 属性
             all_classes.update(classes)  # 将类名添加到集合中
     return sorted(all_classes)
-def get_text_api(source_code):
-    #获取源码中的api接口
-    # 使用正则表达式查找以"/"或'/'开头，并以".css"或".js"结尾的字符串
-    pattern = r"['\"]((\/|\.\/)[^\n\r'\"?]+)(\?[^\n\r'\" ]*)?['\"]"
-    matches = re.findall(pattern, source_code)
-    # 将匹配的路径添加到列表中，去掉.css和.js后缀
-    apis = []
-    exclude_api = ['/', '//', '/favicon.ico', '/login', '/register', '/login.html', '/register.html']  # 排除的滥用接口
-    exclude_list = ['bootstrap', 'chosen', 'bootbox', 'awesome', 'animate', 'picnic', 'cirrus', 'iconfont', 'jquery','layui', 'swiper']  # 排除的插件库
-    for match in matches:
-        match = match[0]  # 由于 findall 返回的是元组，需要取第一个元素
-        match = re.sub(r'\?.*$', '', match)  # 去除查询参数
-        # 仅当路径与 exclude_api 列表中的任意一个完全匹配时，才会被排除
-        if match and match not in exclude_api:
-            contains_excluded_str = False
-            for ex_str in exclude_list:
-                if ex_str in match:
-                    contains_excluded_str = True
-                    break
-            # 如果路径不包含任意一个 exclude_list 中的字符，则添加到 apis 列表中
-            if not contains_excluded_str:
-                apis.append(match)
-    return apis
+
 def get_power(text):
     #获取power by/powered by后的内容
     pattern = r'(?:powered by|power by)\s+(<a\s+[^>]*href="([^"]+)"[^>]*>|[^<>\s]+)'
@@ -109,6 +106,7 @@ def get_power(text):
         else:
             return match.group(1)  # 返回单词或短语
     return None
+
 def fofa(base):
     #通过fofa查询第一页最大条数为500的指纹数据
     with open('config.json', 'r') as f:
@@ -120,6 +118,7 @@ def fofa(base):
     }
     s = requests.get(url, headers=headers)
     return s.json()
+
 def save_to_file(data, filename, filetype, size_value, url,fingerprint):
     #数据保存到文件
     if filetype == 'txt':
@@ -159,23 +158,12 @@ def save_to_file(data, filename, filetype, size_value, url,fingerprint):
                     sheet.append(r)
                 workbook.save(filename)
 
-def main(url, param=None, output_file=None, execute_fofa=False, readfile=None):
-    #批量读取Url
-    if readfile:
-        with open(readfile, 'r') as f:
-            urls = f.readlines()
-        for url in urls:
-            url = url.strip()
-            process_url(url, param, output_file, execute_fofa)
-    else:
-        process_url(url, param, output_file, execute_fofa)
-
-def process_url(url, param=None, output_file=None, execute_fofa=False):
+def Gather(url, param=None, output_file=None, execute_fofa=False, b=None ):
     start_url = url
-    s,url = get_text(url)
+    s, url = get_text(url)
     if s == '':
         print(f"{start_url}访问不可达")
-        return ''
+        exit()
     apis = get_text_api(s)
     if len(apis) > 0:
         filtered_apis = [api for api in apis if api.endswith(('.css', '.js', '.ico', '.png', '.jpg'))]
@@ -193,13 +181,13 @@ def process_url(url, param=None, output_file=None, execute_fofa=False):
             else:
                 random_filtered_apis = []
             joined_apis = other_apis + random_filtered_apis
-
         if len(joined_apis) > 7 :
             sqrt_number = math.ceil(math.sqrt(len(joined_apis)))
             random_apis = random.sample(joined_apis, min(sqrt_number,len(joined_apis)))
             joined_apis = '" && "'.join(random_apis)
         else:
             joined_apis = '" && "'.join(joined_apis)
+
     classes = set(get_text_css_class(s)).intersection(get_all_css_classes(url, s))
     if len(classes) > 0:
         classes = sorted(classes)
@@ -212,18 +200,20 @@ def process_url(url, param=None, output_file=None, execute_fofa=False):
     else:
         print("没有找到共同的类名。")
         joined_classes = ''
-    if joined_classes and joined_apis:
-        fingerprint = '("' + joined_apis + '") || ("' + joined_classes + '")'
-    elif joined_classes:
+
+    if b:
         fingerprint = '"' + joined_classes + '"'
     else:
-        fingerprint = '"' + joined_apis + '"'
+        if joined_classes and joined_apis:
+            fingerprint = '("' + joined_apis + '") || ("' + joined_classes + '")'
+        else:
+            fingerprint = '"' + joined_apis + '"'
     powerby_str = get_power(s)
     if powerby_str:
         fingerprint = '( ' + fingerprint + ' )' + ' && "' + powerby_str + '"'
     if param:
         fingerprint = '( ' + fingerprint + ' )' + ' && "' + param + '"'
-    print('Url\n' + url)
+    print('Url:\n' + url)
     print('构造的指纹如下\n' + fingerprint)
     if execute_fofa:
         results = fofa(base64.b64encode(fingerprint.encode()).decode())
@@ -237,14 +227,26 @@ def process_url(url, param=None, output_file=None, execute_fofa=False):
             for item in result_data:
                 print(item)
 
+def Batch(url, param=None, output_file=None, execute_fofa=False, readfile=None, b=None):
+    #批量读取Url
+    if readfile:
+        with open(readfile, 'r') as f:
+            urls = f.readlines()
+        for url in urls:
+            url = url.strip()
+            Gather(url, param, output_file, execute_fofa, b)
+    else:
+        Gather(url, param, output_file, execute_fofa, b)
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="依据css类 Api等来发现网站指纹,通过Fofa寻找同源码网站,使用Fofa查询之前要在json文件中添加Fofa key")
+    # 参数
     parser.add_argument('-u', '--url', type=str, required=False, metavar='', help='网站Url')
-    parser.add_argument('-p', '--param', type=str, required=False, metavar='',
-                        help='输入要添加的参数,不要带问号、双引号这些特殊字符,要不然Fofa搜索时会报错的')
-    parser.add_argument('-f', '--fofa', action='store_true', help='是否执行Fofa搜索,不带-f选项只会输出框架指纹')
+    parser.add_argument('-p', '--param', type=str, required=False, metavar='', help='输入要添加的参数,不要带问号、双引号这些特殊字符,要不然Fofa搜索时会报错的')
     parser.add_argument('-o', '--output', type=str, required=False, metavar='', help='输出文件名,可以是txt或xlsx格式')
     parser.add_argument('-r', '--readfile', type=str, required=False, metavar='', help='从txt文件中读取URL')
+    parser.add_argument('-f', '--fofa', action='store_true', help='是否执行Fofa搜索,不带-f选项只会输出框架指纹')
+    parser.add_argument('-b', '--blog', action='store_true', help='是否是blog或首页网站,不带-b选项代表是登录界面,没有杂乱的Api')
 
     args = parser.parse_args()
     if args.output:
@@ -253,13 +255,13 @@ if __name__ == "__main__":
         if file_format not in valid_formats:
             print("输出文件格式必须是txt或xlsx")
             exit()
-    if args.output:
         if os.path.exists(args.output):
             if args.output.endswith('.xlsx'):
                 wb = Workbook()
                 wb.save(args.output)
             else:
                 with open(args.output, 'w') as file:
-                    pass  # 创建空文件
-    main(args.url, args.param, args.output, args.fofa, args.readfile)
+                    pass
+                file.close()
+    Batch(args.url, args.param, args.output, args.fofa, args.readfile, args.blog)
 
