@@ -11,6 +11,17 @@ import os
 from openpyxl import Workbook
 from openpyxl.utils.dataframe import dataframe_to_rows
 
+def tofind_banner():
+    banner = '''
+ _____       ______               _ 
+|_   _|     |  ____|             | |
+  | |  ___  | |__  _  _   _   ___| |  
+  | | / _ \ |  __|| || \ | | /   | | 
+  | || (_) || |   | ||  \| || (| | |
+  |_| \___/ |_|   |_||_| \_| \___|_|    
+  '''
+    print(banner)
+
 def get_text(url):
     #获取源代码
     headers = {
@@ -239,6 +250,9 @@ def Batch(url, param=None, output_file=None, execute_fofa=False, readfile=None, 
         Gather(url, param, output_file, execute_fofa, b)
 
 if __name__ == "__main__":
+
+    tofind_banner()
+
     parser = argparse.ArgumentParser(description="依据css类 Api等来发现网站指纹,通过Fofa寻找同源码网站,使用Fofa查询之前要在json文件中添加Fofa key")
     # 参数
     parser.add_argument('-u', '--url', type=str, required=False, metavar='', help='网站Url')

@@ -109,6 +109,12 @@ python ToFind.py -u http://localhost:4000/ -f -b | more
 
 ## 更新日志
 
+### 版本更新(2024/10/25)
+
+v2.0.3
+
+增加banner
+
 ### 版本更新(2024/10/8)
 
 v2.0.2
